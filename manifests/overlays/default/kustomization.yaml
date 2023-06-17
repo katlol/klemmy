@@ -1,0 +1,6 @@
+resources:
+- ../../bases/flux-system/default
+- ../../bases/cert-manager/default
+- ../../bases/ingress-nginx/default
+- ../../bases/postgres-operator/default
+- ../../bases/lemmy/default
