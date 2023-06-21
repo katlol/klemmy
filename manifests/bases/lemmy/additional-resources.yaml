@@ -1,0 +1,138 @@
+# allow all network in this namespace between pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-all
+spec:
+  podSelector: {}
+  ingress:
+  - {}
+  policyTypes:
+  - Ingress
+---
+# ns
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lemmy
+# externalsecret: lemmy-db-superuser
+---
+# The supplied secrets must comply with the specifications
+# of the kubernetes.io/basic-auth type. As a result,
+# the username in the secret must match the one of the owner
+# (for the application secret) and postgres for the superuser one.
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: lemmy-db-superuser
+spec:
+  refreshInterval: "1m"
+  secretStoreRef:
+    name: vault
+    kind: ClusterSecretStore
+  target:
+    name: lemmy-db-superuser
+  data:
+  - secretKey: username
+    remoteRef:
+      key: lemmy/lemmy-db
+      property: superuser-username
+  - secretKey: password
+    remoteRef:
+      key: lemmy/lemmy-db
+      property: superuser-password
+---
+# now normal user
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: lemmy-db
+spec:
+  refreshInterval: "1m"
+  secretStoreRef:
+    name: vault
+    kind: ClusterSecretStore
+  target:
+    name: lemmy-db
+  data:
+  - secretKey: username
+    remoteRef:
+      key: lemmy/lemmy-db
+      property: username
+  - secretKey: password
+    remoteRef:
+      key: lemmy/lemmy-db
+      property: password
+---
+# now lemmy
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: lemmy
+spec:
+  refreshInterval: "1m"
+  secretStoreRef:
+    name: vault
+    kind: ClusterSecretStore
+  target:
+    name: lemmy
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      data:
+        config.hjson: |
+          {
+            database: {
+              user: "{{.postgres_user}}"
+              password: "{{.postgres_password}}"
+              host: "lemmy-db-rw"
+              port: 5432
+              database: "lemmy"
+              pool_size: 10
+            }
+            pictrs: {
+              url: "http://pictrs.lemmy.svc.cluster.local:8080/"
+              api_key: "{{.pictrs_api_key}}"
+            }
+            email: {
+              smtp_server: "smtp.mailgun.org:465"
+              smtp_login: "FIXME"
+              smtp_password: "{{.smtp_password}}"
+              smtp_from_address: "FIXME"
+              # Whether or not smtp connections should use tls. Can be none, tls, or starttls
+              tls_type: "tls"
+            }
+            setup: {
+              admin_username: "katia"
+              admin_password: "{{.admin_password}}"
+              site_name: "lemmy"
+              admin_email: "FIXME"
+            }
+            hostname: "lemmy.katia.sh"
+            port: 8536
+            tls_enabled: true
+          }
+        pictrs-api-key: '{{.pictrs_api_key}}'
+        postgres-user: '{{.postgres_user}}'
+        postgres-password: '{{.postgres_password}}'
+  data:
+  - secretKey: pictrs_api_key
+    remoteRef:
+      key: lemmy/lemmy
+      property: pictrs-api-key
+  - secretKey: postgres_user
+    remoteRef:
+      key: lemmy/lemmy-db
+      property: superuser-username
+  - secretKey: postgres_password
+    remoteRef:
+      key: lemmy/lemmy-db
+      property: superuser-password
+  - secretKey: smtp_password
+    remoteRef:
+      key: lemmy/lemmy
+      property: smtp-password
+  - secretKey: admin_password
+    remoteRef:
+      key: lemmy/lemmy
+      property: admin-password

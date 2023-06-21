@@ -1,0 +1,93 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: lemmy
+  newName: ghcr.io/katlol/lemmy
+  newTag: local17
+  # newName: docker.io/dessalines/lemmy
+  # newTag: 0.17.4 # {"$imagepolicy": "flux-system:lemmy:tag"}
+- name: lemmy-ui
+  newName: ghcr.io/katlol/lemmy-ui
+  newTag: release-v0.17
+  # newName: docker.io/dessalines/lemmy-ui
+  # newTag: 0.17.4 # {"$imagepolicy": "flux-system:lemmy-ui:tag"}
+- name: pictrs
+  newName: docker.io/asonix/pictrs
+  newTag: 0.4.0-rc.3 # {"$imagepolicy": "flux-system:pictrs:tag"}
+resources:
+- lemmy
+- lemmy-ui
+- postgres
+- pictrs
+- additional-resources.yaml
+- ingress.yaml
+namespace: lemmy
+patches:
+- patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: PICTRS__STORE__TYPE
+        value: object_storage
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: PICTRS__STORE__USE_PATH_STYLE
+        value: "true"
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        # eu-central-2 wasabi bucket
+        name: PICTRS__STORE__ENDPOINT
+        value: "https://s3.eu-central-2.wasabisys.com"
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: PICTRS__STORE__BUCKET_NAME
+        valueFrom:
+          secretKeyRef:
+            name: lemmy
+            key: pictrs-bucket-name
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: PICTRS__STORE__REGION
+        value: eu-central-2
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: PICTRS__STORE__ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: lemmy
+            key: pictrs-bucket-access-key
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value:
+        name: PICTRS__STORE__SECRET_KEY
+        valueFrom:
+          secretKeyRef:
+            name: lemmy
+            key: pictrs-bucket-secret-key
+  target:
+    kind: Deployment
+    name: pictrs
+    version: v1
+- patch: |-
+    - op: replace
+      path: /spec/template/spec/containers/0/env/0/value
+      value: lemmy.katia.sh
+  target:
+    kind: Deployment
+    name: lemmy-ui
+    version: v1
+# deploy lemmy on arm64 only
+- patch: |-
+    - op: add
+      path: /spec/template/spec/nodeSelector
+      value:
+        kubernetes.io/arch: arm64
+  target:
+    kind: Deployment
+    name: lemmy
+    version: v1

@@ -1,0 +1,6 @@
+resources:
+- lemmy.yaml
+commonLabels:
+  app.kubernetes.io/name: lemmy
+  app.kubernetes.io/component: lemmy
+  allow/ingress-nginx: "true"

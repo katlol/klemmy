@@ -1,0 +1,87 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lemmy
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "30"
+    nginx.ingress.kubernetes.io/limit-rpm: "600"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+  - host: lemmy.katia.sh
+    http:
+      paths:
+      - path: /(api|pictrs|feeds|nodeinfo|.well-known)
+        pathType: Prefix
+        backend:
+          service:
+            name: lemmy
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - lemmy.katia.sh
+    secretName: lemmy-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lemmy-ui
+  annotations:
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    nginx.ingress.kubernetes.io/limit-rps: "30"
+    nginx.ingress.kubernetes.io/limit-rpm: "600"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      if ($http_accept = "application/activity+json") {
+        set $proxy_upstream_name "lemmy-lemmy-80";
+      }
+      if ($http_accept = "application/ld+json; profile=\"https://www.w3.org/ns/activitystreams\"") {
+        set $proxy_upstream_name "lemmy-lemmy-80";
+      }
+      if ($request_method = POST) {
+        set $proxy_upstream_name "lemmy-lemmy-80";
+      }
+spec:
+  rules:
+  - host: lemmy.katia.sh
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: lemmy-ui
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - lemmy.katia.sh
+    secretName: lemmy-tls
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pictshare
+  annotations:
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      rewrite ^/pictshare(.*)$ /pictrs/image$1 redirect;
+spec:
+  rules:
+  - host: lemmy.katia.sh
+    http:
+      paths:
+      - path: /pictshare
+        pathType: Prefix
+        backend:
+          service:
+            name: pictrs
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - lemmy.katia.sh
+    secretName: lemmy-tls

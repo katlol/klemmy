@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lemmy
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: lemmy
+        image: lemmy
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8536
+          name: http
+          protocol: TCP
+        env:
+        - name: RUST_LOG
+          value: "debug,lemmy_server=debug,lemmy_api=debug,lemmy_api_common=debug,lemmy_api_crud=debug,lemmy_apub=debug,lemmy_db_schema=debug,lemmy_db_views=debug,lemmy_db_views_actor=debug,lemmy_db_views_moderator=debug,lemmy_routes=debug,lemmy_utils=debug,lemmy_websocket=debug"
+        - name: LEMMY_CORS_ORIGIN
+          value: "https://lemmy.katia.sh"
+        volumeMounts:
+        - name: lemmy-config
+          mountPath: /config
+      volumes:
+      - name: lemmy-config
+        secret:
+          secretName: lemmy
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lemmy
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  type: ClusterIP

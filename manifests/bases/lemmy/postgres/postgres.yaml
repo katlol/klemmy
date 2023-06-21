@@ -1,0 +1,16 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: lemmy-db
+spec:
+  instances: 1
+  superuserSecret:
+    name: lemmy-db-superuser
+  bootstrap:
+    initdb:
+      database: lemmy
+      owner: lemmy
+      secret:
+        name: lemmy-db
+  storage:
+    size: 10Gi

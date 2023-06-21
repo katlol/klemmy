@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lemmy-ui
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: lemmy-ui
+        image: lemmy-ui
+        imagePullPolicy: Always
+        env:
+        - name: LEMMY_UI_LEMMY_EXTERNAL_HOST
+          value: "0.0.0.0:80"
+        - name: LEMMY_UI_LEMMY_INTERNAL_HOST
+          value: "lemmy:80"
+        ports:
+        - containerPort: 1234
+          name: http
+          protocol: TCP
+      securityContext:
+        runAsUser: 991
+        runAsGroup: 991
+        fsGroup: 991
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lemmy-ui
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http
+  type: ClusterIP
